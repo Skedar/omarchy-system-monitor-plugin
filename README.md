@@ -1,25 +1,22 @@
 # System Monitor for Omarchy
 
-A lightweight system-monitor widget for Omarchy 4 / Quattro.
+A simple and lightweight system-monitor widget for Omarchy.
 
 Hover the bar icon for live telemetry. Click the icon or the balloon to open `btop`.
 
 ## Screenshots
 
-Screenshots belong in [`img/`](img/) using numbered names such as `1.png`, `2.png`, and `3.png`.
-
-<!-- Add your screenshots here after placing them in img/.
-
 <p align="center">
-  <img src="img/1.png" alt="System Monitor widget" width="420">
   <img src="img/2.png" alt="System Monitor telemetry balloon" width="420">
+  <img src="img/3.png" alt="System Monitor telemetry balloon" width="420">
+  <img src="img/1.png" alt="System Monitor widget" width="600">
 </p>
--->
 
 ## Install
 
 ```sh
 omarchy plugin add https://github.com/Skedar/omarchy-system-monitor-plugin.git --enable
+omarchy-restart-shell
 ```
 
 ## Update
@@ -45,11 +42,12 @@ omarchy plugin remove io.github.skedar.system-monitor
 - Right-click anywhere in the balloon to close it immediately.
 - Follows the active Omarchy theme automatically.
 
-## Compatibility
+## Compatibility and Deps
 
-- Omarchy 4 / Quattro.
+- Omarchy >4.
 - Linux systems with standard `/proc`, `/sys`, and `df` telemetry sources.
 - NVIDIA utilization and temperature require `nvidia-smi`; the widget remains functional when it is unavailable.
+- Need btop installed to show full system monitor with left click.
 - No root access, external service, or second Quickshell instance is required.
 
 ## Support
@@ -57,4 +55,4 @@ omarchy plugin remove io.github.skedar.system-monitor
 If this plugin is useful to you, support its development:
 
 - [Buy Me a Coffee — Skedar](https://buymeacoffee.com/Skedar)
-- [Skedar's GitHub Pages](https://skedar.github.io/)
+- [Skedar's GitHub Pages](https://skedar.github.io/) 
