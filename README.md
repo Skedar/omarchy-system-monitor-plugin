@@ -1,23 +1,20 @@
-# System Monitor for Omarchy Quattro
+# System Monitor for Omarchy
 
-A native Quickshell bar widget for Omarchy Quattro. Hover its bar icon to inspect CPU, memory, mounted storage, and GPU status; left-click the icon to open `btop`.
+A lightweight system-monitor widget for Omarchy 4 / Quattro.
 
-## Features
+Hover the bar icon for live telemetry. Click the icon or the balloon to open `btop`.
 
-- Uses Quattro's native `bar-widget`, `BarIconButton`, and hover-mode `PopupCard` components.
-- Opens a hover balloon and polls only while that balloon is displayed, at a two-second interval.
-- Left-clicking the icon or anywhere in the hover balloon opens `btop` through Omarchy's native launcher. It assigns the `org.omarchy.btop` app ID, which Quattro's built-in window rules float and center.
-- The balloon has no footer; its content is reserved for telemetry.
-- Keeps the theme-provided foreground and accent colors live; no fixed palette is embedded.
-- Aligns the percentage-and-separator field across CPU, memory, disk, and GPU while keeping each detail field left-aligned.
-- Presents the root filesystem (`/`) as `DISK`, and directs users to `btop` for broader storage inspection.
-- Lists detected hybrid GPU vendors discreetly below the GPU meter, for example `intel|nvidia`.
-- Right-clicking anywhere in the balloon closes it immediately.
-- Requires no root privilege, service, install hook, or network connection.
-- Reads standard Linux `/proc`, `/sys`, and `df` data for CPU, memory, mounted storage, and thermal telemetry.
-- Detects Intel, AMD, and NVIDIA DRM vendors without assuming a fixed GPU index.
-- Uses `nvidia-smi` only when available to expose NVIDIA utilization and temperature.
-- Degrades to an explicit unavailable state when a sensor or optional GPU tool is absent.
+## Screenshots
+
+Screenshots belong in [`img/`](img/) using numbered names such as `1.png`, `2.png`, and `3.png`.
+
+<!-- Add your screenshots here after placing them in img/.
+
+<p align="center">
+  <img src="img/1.png" alt="System Monitor widget" width="420">
+  <img src="img/2.png" alt="System Monitor telemetry balloon" width="420">
+</p>
+-->
 
 ## Install
 
@@ -25,20 +22,11 @@ A native Quickshell bar widget for Omarchy Quattro. Hover its bar icon to inspec
 omarchy plugin add https://github.com/Skedar/omarchy-system-monitor-plugin.git --enable
 ```
 
-The widget defaults to the right bar section. Move it with Omarchy's bar controls if desired.
-
-## Develop and validate
+## Update
 
 ```sh
-PLUGIN_DIR="$HOME/.config/omarchy/plugins/io.github.skedar.system-monitor"
-omarchy plugin validate "$PLUGIN_DIR"
-qmllint -I "$OMARCHY_PATH/shell" "$PLUGIN_DIR/BarWidget.qml"
-```
-
-After saving source files, Omarchy reloads user plugins automatically. If discovery is needed explicitly:
-
-```sh
-omarchy-shell shell rescanPlugins
+omarchy plugin update io.github.skedar.system-monitor
+omarchy-restart-shell
 ```
 
 ## Remove
@@ -47,12 +35,26 @@ omarchy-shell shell rescanPlugins
 omarchy plugin remove io.github.skedar.system-monitor
 ```
 
-## Compatibility and limits
+## What it does
 
-This plugin targets Omarchy 4 / Quattro. It deliberately does not launch a second Quickshell process.
+- Hover the bar icon to show the monitor balloon.
+- Updates CPU, memory, root-disk (`/`), and GPU telemetry every two seconds while the balloon is visible.
+- Shows CPU/GPU usage and temperature, memory usage and used/total capacity, and root-disk usage and used/total capacity.
+- Detects Intel, AMD, and NVIDIA GPUs. Hybrid systems are displayed compactly, for example: `intel|nvidia`.
+- Left-click the icon or balloon to open `btop` in Omarchy's floating, centered terminal window.
+- Right-click anywhere in the balloon to close it immediately.
+- Follows the active Omarchy theme automatically.
 
-GPU telemetry is best-effort. Intel and AMD cards can be identified through DRM metadata, but utilization is shown only where a supported provider exposes it. NVIDIA utilization and temperature require a working `nvidia-smi`; this covers hybrid Intel/NVIDIA systems such as a ThinkPad T480 without requiring NVIDIA to be active.
+## Compatibility
 
-## License
+- Omarchy 4 / Quattro.
+- Linux systems with standard `/proc`, `/sys`, and `df` telemetry sources.
+- NVIDIA utilization and temperature require `nvidia-smi`; the widget remains functional when it is unavailable.
+- No root access, external service, or second Quickshell instance is required.
 
-License selection is pending before public marketplace submission.
+## Support
+
+If this plugin is useful to you, support its development:
+
+- [Buy Me a Coffee — Skedar](https://buymeacoffee.com/Skedar)
+- [Skedar's GitHub Pages](https://skedar.github.io/)
