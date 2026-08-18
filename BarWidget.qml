@@ -84,10 +84,6 @@ BarWidget {
     if (root.bar) root.bar.run("omarchy-launch-or-focus-tui btop")
   }
 
-  function openGitHubPages() {
-    close()
-    if (root.bar) root.bar.run("xdg-open https://skedar.github.io/")
-  }
 
   function parseStats(raw) {
     var lines = String(raw || "").trim().split("\n")
@@ -278,32 +274,6 @@ BarWidget {
         percent: Math.max(root.gpuUsage, 0)
       }
 
-      Item {
-        width: parent.width
-        height: credit.implicitHeight
-
-        Text {
-          id: credit
-          anchors.right: parent.right
-          text: "created by Skedar"
-          color: root.contentForeground
-          opacity: creditMouse.containsMouse ? 0.72 : 0.42
-          font.family: root.contentFontFamily
-          font.pixelSize: Style.font.caption
-        }
-
-        MouseArea {
-          id: creditMouse
-          anchors.fill: parent
-          acceptedButtons: Qt.LeftButton | Qt.RightButton
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: function(mouse) {
-            if (mouse.button === Qt.RightButton) root.close()
-            else root.openGitHubPages()
-          }
-        }
-      }
     }
     }
   }
@@ -336,16 +306,22 @@ BarWidget {
         font.pixelSize: Style.font.body
         font.bold: true
       }
-      Text {
-        width: Style.space(44)
-        text: metric.primaryValue
-        color: root.contentForeground
-        horizontalAlignment: Text.AlignRight
-        font.family: root.contentFontFamily
-        font.pixelSize: Style.font.body
+      Item {
+        width: Style.space(48)
+        implicitHeight: primaryText.implicitHeight
+
+        Text {
+          id: primaryText
+          width: Style.space(44)
+          text: metric.primaryValue
+          color: root.contentForeground
+          horizontalAlignment: Text.AlignRight
+          font.family: root.contentFontFamily
+          font.pixelSize: Style.font.body
+        }
       }
       Text {
-        width: parent.width - Style.space(110)
+        width: parent.width - Style.space(114)
         text: metric.detailValue
         color: root.contentForeground
         elide: Text.ElideRight
