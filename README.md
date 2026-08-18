@@ -1,6 +1,6 @@
 # System Monitor for Omarchy Quattro
 
-A native Quickshell bar widget for Omarchy Quattro. Hover its bar icon to inspect CPU, memory, root-disk, temperature, and GPU status; left-click the icon to open `btop`.
+A native Quickshell bar widget for Omarchy Quattro. Hover its bar icon to inspect CPU, memory, mounted storage, and GPU status; left-click the icon to open `btop`.
 
 ## Features
 
@@ -8,10 +8,13 @@ A native Quickshell bar widget for Omarchy Quattro. Hover its bar icon to inspec
 - Opens a hover balloon and polls only while that balloon is displayed, at a two-second interval.
 - Left-clicking the icon or anywhere in the hover balloon opens `btop` through Omarchy's native launcher. It assigns the `org.omarchy.btop` app ID, which Quattro's built-in window rules float and center.
 - The discreet `created by Skedar` footer opens https://skedar.github.io/.
+- Keeps the theme-provided foreground and accent colors live; no fixed palette is embedded.
+- Presents CPU and GPU usage with temperature, memory with used/total capacity, and every eligible mounted filesystem as `DISK`, `DISK2`, and so on.
+- Lists detected hybrid GPU vendors discreetly below the GPU meter, for example `intel | nvidia`.
 - Requires no root privilege, service, install hook, or network connection.
-- Reads standard Linux `/proc` and `/sys` data for CPU, memory, disk, and thermal telemetry.
+- Reads standard Linux `/proc`, `/sys`, and `df` data for CPU, memory, mounted storage, and thermal telemetry.
 - Detects Intel, AMD, and NVIDIA DRM vendors without assuming a fixed GPU index.
-- Uses `nvidia-smi` only when available to expose NVIDIA model, utilization, and temperature.
+- Uses `nvidia-smi` only when available to expose NVIDIA utilization and temperature.
 - Degrades to an explicit unavailable state when a sensor or optional GPU tool is absent.
 
 ## Install

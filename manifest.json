@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.skedar.system-monitor",
   "name": "System Monitor",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": "Skedar",
   "description": "CPU, memory, disk, temperature, and GPU status in the Omarchy bar.",
   "kinds": ["bar-widget"],

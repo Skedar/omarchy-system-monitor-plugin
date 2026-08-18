@@ -10,10 +10,12 @@ BarWidget {
 
   property bool popupOpen: false
   property int cpuUsage: 0
+  property int cpuTemperature: 0
   property int memoryUsage: 0
-  property int diskUsage: 0
-  property int temperature: 0
-  property string gpuName: "Unavailable"
+  property real memoryUsedBytes: 0
+  property real memoryTotalBytes: 0
+  property var disks: []
+  property string gpuNames: ""
   property int gpuUsage: -1
   property int gpuTemperature: 0
 
@@ -31,6 +33,26 @@ BarWidget {
   function parseInteger(value, fallback) {
     var parsed = Number(value)
     return isNaN(parsed) ? fallback : Math.round(parsed)
+  }
+
+  function parseNumber(value, fallback) {
+    var parsed = Number(value)
+    return isNaN(parsed) ? fallback : parsed
+  }
+
+  function formatBytes(bytes) {
+    var numeric = Math.max(0, Number(bytes) || 0)
+    var units = ["B", "K", "M", "G", "T", "P"]
+    var index = 0
+    while (numeric >= 1024 && index < units.length - 1) {
+      numeric /= 1024
+      index += 1
+    }
+
+    var rounded = numeric >= 100 || index === 0
+      ? Math.round(numeric).toString()
+      : (Math.round(numeric * 10) / 10).toFixed(1).replace(/\.0$/, "")
+    return rounded.replace(".", ",") + units[index]
   }
 
   function refresh() {
@@ -66,16 +88,34 @@ BarWidget {
   }
 
   function parseStats(raw) {
-    var fields = String(raw || "").trim().split("|")
-    if (fields.length !== 7) return
+    var nextDisks = []
+    var lines = String(raw || "").trim().split("\n")
 
-    cpuUsage = clamp(parseInteger(fields[0], 0), 0, 100)
-    memoryUsage = clamp(parseInteger(fields[1], 0), 0, 100)
-    diskUsage = clamp(parseInteger(fields[2], 0), 0, 100)
-    temperature = Math.max(parseInteger(fields[3], 0), 0)
-    gpuName = fields[4].trim() || "Unavailable"
-    gpuUsage = clamp(parseInteger(fields[5], -1), -1, 100)
-    gpuTemperature = Math.max(parseInteger(fields[6], 0), 0)
+    for (var i = 0; i < lines.length; i += 1) {
+      var fields = lines[i].split("|")
+      if (fields.length < 2) continue
+
+      if (fields[0] === "CPU" && fields.length >= 3) {
+        cpuUsage = clamp(parseInteger(fields[1], 0), 0, 100)
+        cpuTemperature = Math.max(parseInteger(fields[2], 0), 0)
+      } else if (fields[0] === "MEM" && fields.length >= 4) {
+        memoryUsage = clamp(parseInteger(fields[1], 0), 0, 100)
+        memoryUsedBytes = Math.max(parseNumber(fields[2], 0), 0)
+        memoryTotalBytes = Math.max(parseNumber(fields[3], 0), 0)
+      } else if (fields[0] === "DISK" && fields.length >= 4) {
+        nextDisks.push({
+          usage: clamp(parseInteger(fields[1], 0), 0, 100),
+          usedBytes: Math.max(parseNumber(fields[2], 0), 0),
+          totalBytes: Math.max(parseNumber(fields[3], 0), 0)
+        })
+      } else if (fields[0] === "GPU" && fields.length >= 4) {
+        gpuNames = fields[1].trim().replace(/,/g, " | ")
+        gpuUsage = clamp(parseInteger(fields[2], -1), -1, 100)
+        gpuTemperature = Math.max(parseInteger(fields[3], 0), 0)
+      }
+    }
+
+    disks = nextDisks
   }
 
   onPopupOpenChanged: {
@@ -94,31 +134,33 @@ BarWidget {
       "total2=$((u2+n2+s2+i2+iw2+irq2+sirq2+st2)); idle2=$((i2+iw2)); " +
       "delta_total=$((total2-total1)); delta_idle=$((idle2-idle1)); " +
       "if [ \"$delta_total\" -gt 0 ]; then cpu=$((100*(delta_total-delta_idle)/delta_total)); else cpu=0; fi; " +
-      "memory=$(awk '/MemTotal:/ { total=$2 } /MemAvailable:/ { available=$2 } END { if (total > 0) printf \"%d\", 100*(total-available)/total; else print 0 }' /proc/meminfo); " +
-      "disk=$(df -P / 2>/dev/null | awk 'NR==2 { print int($5) }'); [ -n \"$disk\" ] || disk=0; " +
+      "read memory_total memory_available <<EOF\n$(awk '/MemTotal:/ { total=$2 } /MemAvailable:/ { available=$2 } END { print total, available }' /proc/meminfo)\nEOF\n" +
+      "memory_total=${memory_total:-0}; memory_available=${memory_available:-0}; memory_used=$((memory_total-memory_available)); " +
+      "if [ \"$memory_total\" -gt 0 ]; then memory_percent=$((100*memory_used/memory_total)); else memory_percent=0; fi; " +
       "temperature_raw=0; " +
       "for sensor in /sys/class/hwmon/hwmon*/temp*_input /sys/class/thermal/thermal_zone*/temp; do " +
       "  [ -r \"$sensor\" ] || continue; value=$(cat \"$sensor\" 2>/dev/null); " +
       "  case \"$value\" in *[!0-9]*|'') continue ;; esac; " +
       "  if [ \"$value\" -gt \"$temperature_raw\" ]; then temperature_raw=$value; fi; " +
       "done; temperature=$((temperature_raw / 1000)); " +
-      "gpu_name=Unavailable; gpu_usage=-1; gpu_temperature=0; " +
+      "gpu_names=; gpu_usage=-1; gpu_temperature=0; " +
+      "for card in /sys/class/drm/card[0-9]*; do " +
+      "  [ -r \"$card/device/vendor\" ] || continue; vendor=$(cat \"$card/device/vendor\" 2>/dev/null); " +
+      "  case \"$vendor\" in 0x8086) gpu_vendor=intel ;; 0x1002) gpu_vendor=amd ;; 0x10de) gpu_vendor=nvidia ;; *) continue ;; esac; " +
+      "  [ -n \"$gpu_names\" ] && gpu_names=\"$gpu_names,\"; gpu_names=\"$gpu_names$gpu_vendor\"; " +
+      "done; " +
       "if command -v nvidia-smi >/dev/null 2>&1; then " +
-      "  gpu_line=$(nvidia-smi --query-gpu=name,utilization.gpu,temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1); " +
+      "  gpu_line=$(nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1); " +
       "  if [ -n \"$gpu_line\" ]; then " +
-      "    IFS=, read -r nvidia_name nvidia_usage nvidia_temperature <<EOF\n$gpu_line\nEOF\n" +
-      "    gpu_name=$(printf '%s' \"$nvidia_name\" | tr -d '|'); " +
+      "    IFS=, read -r nvidia_usage nvidia_temperature <<EOF\n$gpu_line\nEOF\n" +
       "    gpu_usage=$(printf '%s' \"$nvidia_usage\" | tr -cd '0-9'); gpu_temperature=$(printf '%s' \"$nvidia_temperature\" | tr -cd '0-9'); " +
       "    [ -n \"$gpu_usage\" ] || gpu_usage=0; [ -n \"$gpu_temperature\" ] || gpu_temperature=0; " +
       "  fi; " +
       "fi; " +
-      "if [ \"$gpu_name\" = Unavailable ]; then " +
-      "  for card in /sys/class/drm/card[0-9]*; do " +
-      "    [ -r \"$card/device/vendor\" ] || continue; vendor=$(cat \"$card/device/vendor\" 2>/dev/null); " +
-      "    case \"$vendor\" in 0x8086) gpu_name=Intel ;; 0x1002) gpu_name=AMD ;; 0x10de) gpu_name=NVIDIA ;; *) continue ;; esac; break; " +
-      "  done; " +
-      "fi; " +
-      "printf '%s|%s|%s|%s|%s|%s|%s\\n' \"$cpu\" \"$memory\" \"$disk\" \"$temperature\" \"$gpu_name\" \"$gpu_usage\" \"$gpu_temperature\""
+      "printf 'CPU|%s|%s\\n' \"$cpu\" \"$temperature\"; " +
+      "printf 'MEM|%s|%s|%s\\n' \"$memory_percent\" \"$((memory_used * 1024))\" \"$((memory_total * 1024))\"; " +
+      "df -P -B1 -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | awk 'NR > 1 && $1 !~ /^\/\/|^none$/ && !seen[$1]++ { gsub(/%/, \"\", $5); print \"DISK|\" $5 \"|\" $3 \"|\" $2 }'; " +
+      "printf 'GPU|%s|%s|%s\\n' \"$gpu_names\" \"$gpu_usage\" \"$gpu_temperature\""
     ]
     stdout: StdioCollector {
       waitForEnd: true
@@ -194,70 +236,46 @@ BarWidget {
         width: parent.width
         spacing: Style.space(12)
 
-      Row {
-        spacing: Style.space(8)
-        Text {
-          text: "󰍛"
-          color: Color.accent
-          font.family: root.contentFontFamily
-          font.pixelSize: Style.font.heading
-        }
-        Text {
-          text: "SYSTEM MONITOR"
-          color: root.contentForeground
-          font.family: root.contentFontFamily
-          font.pixelSize: Style.font.title
-          font.bold: true
-        }
-      }
-
-      MetricRow { label: "CPU"; value: root.cpuUsage + "%"; percent: root.cpuUsage }
-      MetricRow { label: "MEM"; value: root.memoryUsage + "%"; percent: root.memoryUsage }
-      MetricRow { label: "DISK"; value: root.diskUsage + "%"; percent: root.diskUsage }
-      MetricRow {
-        visible: root.temperature > 0
-        label: "TEMP"
-        value: root.temperature + "°C"
-        percent: root.temperature
-      }
-
-      Column {
+      Text {
         width: parent.width
-        visible: root.gpuName !== "Unavailable"
-        spacing: Style.space(4)
-        Row {
-          width: parent.width
-          Text {
-            width: Style.space(54)
-            text: "GPU"
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.body
-            font.bold: true
-          }
-          Text {
-            width: parent.width - Style.space(54)
-            text: root.gpuName + (root.gpuTemperature > 0 ? " · " + root.gpuTemperature + "°C" : "")
-            color: root.gpuUsage > 0 ? Color.accent : root.contentForeground
-            elide: Text.ElideRight
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.body
-          }
+        text: "SYSTEM MONITOR"
+        color: root.contentForeground
+        horizontalAlignment: Text.AlignHCenter
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.title
+        font.bold: true
+      }
+
+      MetricRow {
+        icon: "󰍛"
+        label: "CPU"
+        value: root.cpuUsage + "% | " + (root.cpuTemperature > 0 ? root.cpuTemperature + "°C" : "—")
+        percent: root.cpuUsage
+      }
+      MetricRow {
+        icon: "󰘚"
+        label: "MEM"
+        value: root.memoryUsage + "% | " + root.formatBytes(root.memoryUsedBytes) + "/" + root.formatBytes(root.memoryTotalBytes)
+        percent: root.memoryUsage
+      }
+      Repeater {
+        model: root.disks
+        delegate: MetricRow {
+          required property var modelData
+          required property int index
+          icon: "󰋊"
+          label: index === 0 ? "DISK" : "DISK" + (index + 1)
+          value: modelData.usage + "% | " + root.formatBytes(modelData.usedBytes) + "/" + root.formatBytes(modelData.totalBytes)
+          percent: modelData.usage
         }
-        Rectangle {
-          visible: root.gpuUsage >= 0
-          width: parent.width
-          height: Style.space(5)
-          radius: height / 2
-          color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.12)
-          Rectangle {
-            width: parent.width * root.gpuUsage / 100
-            height: parent.height
-            radius: parent.radius
-            color: Color.accent
-            Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-          }
-        }
+      }
+      MetricRow {
+        visible: root.gpuNames !== ""
+        icon: "󰢮"
+        label: "GPU"
+        value: (root.gpuUsage >= 0 ? root.gpuUsage + "%" : "—") + " | " + (root.gpuTemperature > 0 ? root.gpuTemperature + "°C" : "—")
+        subtitle: root.gpuNames
+        percent: Math.max(root.gpuUsage, 0)
       }
 
       Item {
@@ -288,8 +306,10 @@ BarWidget {
 
   component MetricRow: Column {
     id: metric
+    property string icon: ""
     property string label: ""
     property string value: ""
+    property string subtitle: ""
     property real percent: 0
     width: parent ? parent.width : 0
     spacing: Style.space(4)
@@ -297,7 +317,14 @@ BarWidget {
     Row {
       width: parent.width
       Text {
-        width: Style.space(54)
+        width: Style.space(18)
+        text: metric.icon
+        color: Color.accent
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.body
+      }
+      Text {
+        width: Style.space(46)
         text: metric.label
         color: root.contentForeground
         font.family: root.contentFontFamily
@@ -305,11 +332,25 @@ BarWidget {
         font.bold: true
       }
       Text {
+        width: parent.width - Style.space(64)
         text: metric.value
         color: root.contentForeground
+        horizontalAlignment: Text.AlignRight
+        elide: Text.ElideRight
         font.family: root.contentFontFamily
         font.pixelSize: Style.font.body
       }
+    }
+    Text {
+      visible: metric.subtitle !== ""
+      width: parent.width
+      text: metric.subtitle
+      color: root.contentForeground
+      opacity: 0.48
+      horizontalAlignment: Text.AlignLeft
+      elide: Text.ElideRight
+      font.family: root.contentFontFamily
+      font.pixelSize: Style.font.caption
     }
     Rectangle {
       width: parent.width
