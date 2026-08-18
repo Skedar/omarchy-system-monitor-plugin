@@ -6,7 +6,7 @@ A native Quickshell bar widget for Omarchy Quattro. Hover its bar icon to inspec
 
 - Uses Quattro's native `bar-widget`, `BarIconButton`, and hover-mode `PopupCard` components.
 - Opens a hover balloon and polls only while that balloon is displayed, at a two-second interval.
-- Left-clicking the icon or anywhere in the hover balloon opens `btop` in a centered floating Foot window.
+- Left-clicking the icon or anywhere in the hover balloon opens `btop` through Omarchy's native launcher. It assigns the `org.omarchy.btop` app ID, which Quattro's built-in window rules float and center.
 - The discreet `created by Skedar` footer opens https://skedar.github.io/.
 - Requires no root privilege, service, install hook, or network connection.
 - Reads standard Linux `/proc` and `/sys` data for CPU, memory, disk, and thermal telemetry.

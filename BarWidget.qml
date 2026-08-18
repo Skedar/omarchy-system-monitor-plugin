@@ -57,7 +57,7 @@ BarWidget {
 
   function launchBtop() {
     close()
-    if (root.bar) root.bar.run("hyprctl dispatch exec '[float; center] foot -e btop'")
+    if (root.bar) root.bar.run("omarchy-launch-or-focus-tui btop")
   }
 
   function openGitHubPages() {
