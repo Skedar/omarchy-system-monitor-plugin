@@ -194,7 +194,7 @@ BarWidget {
   }
 
   Timer {
-    interval: 2000
+    interval: 1000
     repeat: true
     running: root.popupOpen
     onTriggered: root.refresh()

@@ -36,7 +36,7 @@ omarchy plugin remove io.github.skedar.system-monitor
 ## What it does
 
 - Hover the bar icon to show the monitor balloon.
-- Updates CPU, memory, root-disk (`/`), network, and GPU telemetry every two seconds while the balloon is visible.
+- Updates CPU, memory, root-disk (`/`), network, and GPU telemetry every second while the balloon is visible.
 - Shows CPU/GPU usage and temperature, memory usage and used/total capacity, and root-disk usage and used/total capacity.
 - Detects Intel, AMD, and NVIDIA GPUs. Hybrid systems are displayed compactly, for example: `intel|nvidia`.
 - Shows `NET` only when an active default network route is available. `▼` is download and `▲` is upload; both values are live transfer rates sampled from the active interface.
