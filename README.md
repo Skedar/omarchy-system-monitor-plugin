@@ -1,4 +1,4 @@
-# System Monitor for Omarchy - SSM 
+# Simple System Monitor for Omarchy - SSM 
 
 A simple and lightweight system-monitor widget for Omarchy.
 
