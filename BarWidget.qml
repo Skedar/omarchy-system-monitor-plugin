@@ -296,9 +296,6 @@ BarWidget {
         detailValue: root.formatBytes(root.diskUsedBytes) + "/" + root.formatBytes(root.diskTotalBytes)
         percent: root.diskUsage
       }
-      NetworkRow {
-        visible: root.networkConnected
-      }
       MetricRow {
         visible: root.gpuNames !== ""
         icon: "󰢮"
@@ -307,6 +304,9 @@ BarWidget {
         detailValue: root.gpuTemperature > 0 ? root.gpuTemperature + "°C" : "—"
         subtitle: root.gpuNames
         percent: Math.max(root.gpuUsage, 0)
+      }
+      NetworkRow {
+        visible: root.networkConnected
       }
 
     }
@@ -415,7 +415,7 @@ BarWidget {
       Text {
         width: parent.width - Style.space(66)
         text: (root.downloadActive ? root.networkUsage + "% - " : "")
-          + root.formatRate(root.networkUploadRate) + " ▲ | ▼ " + root.formatRate(root.networkDownloadRate)
+          + root.formatRate(root.networkDownloadRate) + " ▼ | ▲ " + root.formatRate(root.networkUploadRate)
         color: root.contentForeground
         elide: Text.ElideRight
         font.family: root.contentFontFamily
