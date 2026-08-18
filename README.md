@@ -35,9 +35,11 @@ omarchy plugin remove io.github.skedar.system-monitor
 ## What it does
 
 - Hover the bar icon to show the monitor balloon.
-- Updates CPU, memory, root-disk (`/`), and GPU telemetry every two seconds while the balloon is visible.
+- Updates CPU, memory, root-disk (`/`), network, and GPU telemetry every two seconds while the balloon is visible.
 - Shows CPU/GPU usage and temperature, memory usage and used/total capacity, and root-disk usage and used/total capacity.
 - Detects Intel, AMD, and NVIDIA GPUs. Hybrid systems are displayed compactly, for example: `intel|nvidia`.
+- Shows `NET` only when an active default network route is available. `▲` is upload and `▼` is download; both values are live transfer rates sampled from the active interface.
+- Shows a network activity bar after sustained download traffic of at least 512 KiB/s; the percentage uses the active interface link speed when the system exposes it. Short, trivial page traffic does not show the bar.
 - Left-click the icon or balloon to open `btop` in Omarchy's floating, centered terminal window.
 - Right-click anywhere in the balloon to close it immediately.
 - Follows the active Omarchy theme automatically.
@@ -45,7 +47,7 @@ omarchy plugin remove io.github.skedar.system-monitor
 ## Compatibility and Deps
 
 - Omarchy >4.
-- Linux systems with standard `/proc`, `/sys`, and `df` telemetry sources.
+- Linux systems with standard `/proc`, `/sys`, `df`, and `iproute2` telemetry sources.
 - NVIDIA utilization and temperature require `nvidia-smi`; the widget remains functional when it is unavailable.
 - Need btop installed to show full system monitor with left click.
 - No root access, external service, or second Quickshell instance is required.

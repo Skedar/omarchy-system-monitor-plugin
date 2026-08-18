@@ -17,6 +17,11 @@ BarWidget {
   property int diskUsage: 0
   property real diskUsedBytes: 0
   property real diskTotalBytes: 0
+  property bool networkConnected: false
+  property real networkUploadRate: 0
+  property real networkDownloadRate: 0
+  property int networkUsage: 0
+  property int sustainedDownloadSamples: 0
   property string gpuNames: ""
   property int gpuUsage: -1
   property int gpuTemperature: 0
@@ -56,6 +61,12 @@ BarWidget {
       : (Math.round(numeric * 10) / 10).toFixed(1).replace(/\.0$/, "")
     return rounded.replace(".", ",") + units[index]
   }
+
+  function formatRate(bytesPerSecond) {
+    return formatBytes(bytesPerSecond)
+  }
+
+  readonly property bool downloadActive: sustainedDownloadSamples >= 2
 
   function refresh() {
     if (!statsProcess.running) statsProcess.running = true
@@ -103,6 +114,14 @@ BarWidget {
         diskUsage = clamp(parseInteger(fields[1], 0), 0, 100)
         diskUsedBytes = Math.max(parseNumber(fields[2], 0), 0)
         diskTotalBytes = Math.max(parseNumber(fields[3], 0), 0)
+      } else if (fields[0] === "NET" && fields.length >= 5) {
+        networkConnected = fields[1] === "1"
+        networkUploadRate = Math.max(parseNumber(fields[2], 0), 0)
+        networkDownloadRate = Math.max(parseNumber(fields[3], 0), 0)
+        networkUsage = clamp(parseInteger(fields[4], 0), 0, 100)
+        sustainedDownloadSamples = networkConnected && networkDownloadRate >= 524288
+          ? sustainedDownloadSamples + 1
+          : 0
       } else if (fields[0] === "GPU" && fields.length >= 4) {
         gpuNames = fields[1].trim().replace(/,/g, "|")
         gpuUsage = clamp(parseInteger(fields[2], -1), -1, 100)
@@ -153,6 +172,19 @@ BarWidget {
       "printf 'CPU|%s|%s\\n' \"$cpu\" \"$temperature\"; " +
       "printf 'MEM|%s|%s|%s\\n' \"$memory_percent\" \"$((memory_used * 1024))\" \"$((memory_total * 1024))\"; " +
       "df -P -B1 / 2>/dev/null | awk 'NR == 2 { gsub(/%/, \"\", $5); print \"DISK|\" $5 \"|\" $3 \"|\" $2 }'; " +
+      "network_device=$(ip route show default 2>/dev/null | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == \"dev\") { print $(i + 1); exit } }'); " +
+      "if [ -n \"$network_device\" ] && [ \"$network_device\" != lo ] && [ -r \"/sys/class/net/$network_device/operstate\" ] && [ \"$(cat \"/sys/class/net/$network_device/operstate\" 2>/dev/null)\" != down ]; then " +
+      "  read network_rx1 network_tx1 <<EOF\n$(awk -v device=\"$network_device\" '$1 ~ /:$/ { name=$1; sub(/:$/, \"\", name); if (name == device) print $2, $10 }' /proc/net/dev)\nEOF\n" +
+      "  network_rx1=${network_rx1:-0}; network_tx1=${network_tx1:-0}; sleep 0.15; " +
+      "  read network_rx2 network_tx2 <<EOF\n$(awk -v device=\"$network_device\" '$1 ~ /:$/ { name=$1; sub(/:$/, \"\", name); if (name == device) print $2, $10 }' /proc/net/dev)\nEOF\n" +
+      "  network_rx2=${network_rx2:-$network_rx1}; network_tx2=${network_tx2:-$network_tx1}; " +
+      "  network_down=$(( (network_rx2 - network_rx1) * 1000 / 150 )); network_up=$(( (network_tx2 - network_tx1) * 1000 / 150 )); " +
+      "  [ \"$network_down\" -ge 0 ] || network_down=0; [ \"$network_up\" -ge 0 ] || network_up=0; " +
+      "  network_speed=0; [ -r \"/sys/class/net/$network_device/speed\" ] && network_speed=$(cat \"/sys/class/net/$network_device/speed\" 2>/dev/null); " +
+      "  case \"$network_speed\" in *[!0-9]*|'') network_speed=0 ;; esac; " +
+      "  if [ \"$network_speed\" -gt 0 ]; then network_percent=$((100 * network_down / (network_speed * 125000))); else network_percent=0; fi; " +
+      "  [ \"$network_percent\" -le 100 ] || network_percent=100; printf 'NET|1|%s|%s|%s\\n' \"$network_up\" \"$network_down\" \"$network_percent\"; " +
+      "else printf 'NET|0|0|0|0\\n'; fi; " +
       "printf 'GPU|%s|%s|%s\\n' \"$gpu_names\" \"$gpu_usage\" \"$gpu_temperature\""
     ]
     stdout: StdioCollector {
@@ -264,6 +296,9 @@ BarWidget {
         detailValue: root.formatBytes(root.diskUsedBytes) + "/" + root.formatBytes(root.diskTotalBytes)
         percent: root.diskUsage
       }
+      NetworkRow {
+        visible: root.networkConnected
+      }
       MetricRow {
         visible: root.gpuNames !== ""
         icon: "󰢮"
@@ -347,6 +382,54 @@ BarWidget {
       color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.12)
       Rectangle {
         width: parent.width * root.clamp(metric.percent, 0, 100) / 100
+        height: parent.height
+        radius: parent.radius
+        color: Color.accent
+        Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+      }
+    }
+  }
+
+  component NetworkRow: Column {
+    id: networkMetric
+    width: parent ? parent.width : 0
+    spacing: Style.space(4)
+
+    Row {
+      width: parent.width
+      Text {
+        width: Style.space(18)
+        text: "󰲝"
+        color: Color.accent
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.body
+      }
+      Text {
+        width: Style.space(48)
+        text: "NET:"
+        color: root.contentForeground
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.body
+        font.bold: true
+      }
+      Text {
+        width: parent.width - Style.space(66)
+        text: (root.downloadActive ? root.networkUsage + "% - " : "")
+          + root.formatRate(root.networkUploadRate) + " ▲ | ▼ " + root.formatRate(root.networkDownloadRate)
+        color: root.contentForeground
+        elide: Text.ElideRight
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.body
+      }
+    }
+    Rectangle {
+      visible: root.downloadActive
+      width: parent.width
+      height: Style.space(5)
+      radius: height / 2
+      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.12)
+      Rectangle {
+        width: parent.width * root.networkUsage / 100
         height: parent.height
         radius: parent.radius
         color: Color.accent
