@@ -9,8 +9,10 @@ A native Quickshell bar widget for Omarchy Quattro. Hover its bar icon to inspec
 - Left-clicking the icon or anywhere in the hover balloon opens `btop` through Omarchy's native launcher. It assigns the `org.omarchy.btop` app ID, which Quattro's built-in window rules float and center.
 - The discreet `created by Skedar` footer opens https://skedar.github.io/.
 - Keeps the theme-provided foreground and accent colors live; no fixed palette is embedded.
-- Presents CPU and GPU usage with temperature, memory with used/total capacity, and every eligible mounted filesystem as `DISK`, `DISK2`, and so on.
-- Lists detected hybrid GPU vendors discreetly below the GPU meter, for example `intel | nvidia`.
+- Aligns the percentage-and-separator field across CPU, memory, disk, and GPU while keeping each detail field left-aligned.
+- Presents the root filesystem (`/`) as `DISK`, and directs users to `btop` for broader storage inspection.
+- Lists detected hybrid GPU vendors discreetly below the GPU meter, for example `intel|nvidia`.
+- Right-clicking anywhere in the balloon closes it immediately.
 - Requires no root privilege, service, install hook, or network connection.
 - Reads standard Linux `/proc`, `/sys`, and `df` data for CPU, memory, mounted storage, and thermal telemetry.
 - Detects Intel, AMD, and NVIDIA DRM vendors without assuming a fixed GPU index.

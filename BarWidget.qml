@@ -14,7 +14,9 @@ BarWidget {
   property int memoryUsage: 0
   property real memoryUsedBytes: 0
   property real memoryTotalBytes: 0
-  property var disks: []
+  property int diskUsage: 0
+  property real diskUsedBytes: 0
+  property real diskTotalBytes: 0
   property string gpuNames: ""
   property int gpuUsage: -1
   property int gpuTemperature: 0
@@ -88,7 +90,6 @@ BarWidget {
   }
 
   function parseStats(raw) {
-    var nextDisks = []
     var lines = String(raw || "").trim().split("\n")
 
     for (var i = 0; i < lines.length; i += 1) {
@@ -103,19 +104,15 @@ BarWidget {
         memoryUsedBytes = Math.max(parseNumber(fields[2], 0), 0)
         memoryTotalBytes = Math.max(parseNumber(fields[3], 0), 0)
       } else if (fields[0] === "DISK" && fields.length >= 4) {
-        nextDisks.push({
-          usage: clamp(parseInteger(fields[1], 0), 0, 100),
-          usedBytes: Math.max(parseNumber(fields[2], 0), 0),
-          totalBytes: Math.max(parseNumber(fields[3], 0), 0)
-        })
+        diskUsage = clamp(parseInteger(fields[1], 0), 0, 100)
+        diskUsedBytes = Math.max(parseNumber(fields[2], 0), 0)
+        diskTotalBytes = Math.max(parseNumber(fields[3], 0), 0)
       } else if (fields[0] === "GPU" && fields.length >= 4) {
-        gpuNames = fields[1].trim().replace(/,/g, " | ")
+        gpuNames = fields[1].trim().replace(/,/g, "|")
         gpuUsage = clamp(parseInteger(fields[2], -1), -1, 100)
         gpuTemperature = Math.max(parseInteger(fields[3], 0), 0)
       }
     }
-
-    disks = nextDisks
   }
 
   onPopupOpenChanged: {
@@ -159,7 +156,7 @@ BarWidget {
       "fi; " +
       "printf 'CPU|%s|%s\\n' \"$cpu\" \"$temperature\"; " +
       "printf 'MEM|%s|%s|%s\\n' \"$memory_percent\" \"$((memory_used * 1024))\" \"$((memory_total * 1024))\"; " +
-      "df -P -B1 -x tmpfs -x devtmpfs -x squashfs -x overlay 2>/dev/null | awk 'NR > 1 && $1 !~ /^\/\/|^none$/ && !seen[$1]++ { gsub(/%/, \"\", $5); print \"DISK|\" $5 \"|\" $3 \"|\" $2 }'; " +
+      "df -P -B1 / 2>/dev/null | awk 'NR == 2 { gsub(/%/, \"\", $5); print \"DISK|\" $5 \"|\" $3 \"|\" $2 }'; " +
       "printf 'GPU|%s|%s|%s\\n' \"$gpu_names\" \"$gpu_usage\" \"$gpu_temperature\""
     ]
     stdout: StdioCollector {
@@ -227,8 +224,12 @@ BarWidget {
 
       MouseArea {
         anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.launchBtop()
+        onClicked: function(mouse) {
+          if (mouse.button === Qt.RightButton) root.close()
+          else root.launchBtop()
+        }
       }
 
       Column {
@@ -248,32 +249,31 @@ BarWidget {
 
       MetricRow {
         icon: "󰍛"
-        label: "CPU"
-        value: root.cpuUsage + "% | " + (root.cpuTemperature > 0 ? root.cpuTemperature + "°C" : "—")
+        label: "CPU:"
+        primaryValue: root.cpuUsage + "% |"
+        detailValue: root.cpuTemperature > 0 ? root.cpuTemperature + "°C" : "—"
         percent: root.cpuUsage
       }
       MetricRow {
         icon: "󰘚"
-        label: "MEM"
-        value: root.memoryUsage + "% | " + root.formatBytes(root.memoryUsedBytes) + "/" + root.formatBytes(root.memoryTotalBytes)
+        label: "MEM:"
+        primaryValue: root.memoryUsage + "% |"
+        detailValue: root.formatBytes(root.memoryUsedBytes) + "/" + root.formatBytes(root.memoryTotalBytes)
         percent: root.memoryUsage
       }
-      Repeater {
-        model: root.disks
-        delegate: MetricRow {
-          required property var modelData
-          required property int index
-          icon: "󰋊"
-          label: index === 0 ? "DISK" : "DISK" + (index + 1)
-          value: modelData.usage + "% | " + root.formatBytes(modelData.usedBytes) + "/" + root.formatBytes(modelData.totalBytes)
-          percent: modelData.usage
-        }
+      MetricRow {
+        icon: "󰋊"
+        label: "DISK:"
+        primaryValue: root.diskUsage + "% |"
+        detailValue: root.formatBytes(root.diskUsedBytes) + "/" + root.formatBytes(root.diskTotalBytes)
+        percent: root.diskUsage
       }
       MetricRow {
         visible: root.gpuNames !== ""
         icon: "󰢮"
-        label: "GPU"
-        value: (root.gpuUsage >= 0 ? root.gpuUsage + "%" : "—") + " | " + (root.gpuTemperature > 0 ? root.gpuTemperature + "°C" : "—")
+        label: "GPU:"
+        primaryValue: (root.gpuUsage >= 0 ? root.gpuUsage + "%" : "—") + " |"
+        detailValue: root.gpuTemperature > 0 ? root.gpuTemperature + "°C" : "—"
         subtitle: root.gpuNames
         percent: Math.max(root.gpuUsage, 0)
       }
@@ -295,9 +295,13 @@ BarWidget {
         MouseArea {
           id: creditMouse
           anchors.fill: parent
+          acceptedButtons: Qt.LeftButton | Qt.RightButton
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
-          onClicked: root.openGitHubPages()
+          onClicked: function(mouse) {
+            if (mouse.button === Qt.RightButton) root.close()
+            else root.openGitHubPages()
+          }
         }
       }
     }
@@ -308,7 +312,8 @@ BarWidget {
     id: metric
     property string icon: ""
     property string label: ""
-    property string value: ""
+    property string primaryValue: ""
+    property string detailValue: ""
     property string subtitle: ""
     property real percent: 0
     width: parent ? parent.width : 0
@@ -324,7 +329,7 @@ BarWidget {
         font.pixelSize: Style.font.body
       }
       Text {
-        width: Style.space(46)
+        width: Style.space(48)
         text: metric.label
         color: root.contentForeground
         font.family: root.contentFontFamily
@@ -332,10 +337,17 @@ BarWidget {
         font.bold: true
       }
       Text {
-        width: parent.width - Style.space(64)
-        text: metric.value
+        width: Style.space(44)
+        text: metric.primaryValue
         color: root.contentForeground
         horizontalAlignment: Text.AlignRight
+        font.family: root.contentFontFamily
+        font.pixelSize: Style.font.body
+      }
+      Text {
+        width: parent.width - Style.space(110)
+        text: metric.detailValue
+        color: root.contentForeground
         elide: Text.ElideRight
         font.family: root.contentFontFamily
         font.pixelSize: Style.font.body
