@@ -57,7 +57,12 @@ BarWidget {
 
   function launchBtop() {
     close()
-    if (root.bar) root.bar.run("foot -e btop")
+    if (root.bar) root.bar.run("hyprctl dispatch exec '[float; center] foot -e btop'")
+  }
+
+  function openGitHubPages() {
+    close()
+    if (root.bar) root.bar.run("xdg-open https://skedar.github.io/")
   }
 
   function parseStats(raw) {
@@ -166,17 +171,28 @@ BarWidget {
     triggerMode: "hover"
     open: root.popupOpen
     contentWidth: Style.space(300)
-    contentHeight: popup.fittedContentHeight(content.implicitHeight)
+    contentHeight: popup.fittedContentHeight(cardContent.implicitHeight)
 
     onContainsMouseChanged: {
       if (containsMouse) closeTimer.stop()
       else if (!button.tooltipHovered) closeTimer.restart()
     }
 
-    Column {
-      id: content
+    Item {
+      id: cardContent
       width: parent.width
-      spacing: Style.space(12)
+      implicitHeight: content.implicitHeight
+
+      MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.launchBtop()
+      }
+
+      Column {
+        id: content
+        width: parent.width
+        spacing: Style.space(12)
 
       Row {
         spacing: Style.space(8)
@@ -244,15 +260,29 @@ BarWidget {
         }
       }
 
-      Text {
+      Item {
         width: parent.width
-        text: "Click the icon to open btop"
-        color: root.contentForeground
-        opacity: 0.5
-        horizontalAlignment: Text.AlignRight
-        font.family: root.contentFontFamily
-        font.pixelSize: Style.font.caption
+        height: credit.implicitHeight
+
+        Text {
+          id: credit
+          anchors.right: parent.right
+          text: "created by Skedar"
+          color: root.contentForeground
+          opacity: creditMouse.containsMouse ? 0.72 : 0.42
+          font.family: root.contentFontFamily
+          font.pixelSize: Style.font.caption
+        }
+
+        MouseArea {
+          id: creditMouse
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.openGitHubPages()
+        }
       }
+    }
     }
   }
 
