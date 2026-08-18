@@ -1,0 +1,11 @@
+# Local/editor files
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Local test/debug output
+*.log
+coverage/
