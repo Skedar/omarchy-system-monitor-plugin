@@ -7,6 +7,7 @@ Hover the bar icon for live telemetry. Click the icon or the balloon to open `bt
 ## Screenshots
 
 <p align="center">
+  <img src="preview.png" alt="System Monitor widget" width="600">
   <img src="img/2.png" alt="System Monitor telemetry balloon" width="420">
   <img src="img/3.png" alt="System Monitor telemetry balloon" width="420">
   <img src="img/1.png" alt="System Monitor widget" width="600">
